@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os" // ✅ tambahkan ini
+
 	"todo-backend/models"
 	"todo-backend/routes"
 
@@ -22,6 +24,11 @@ func main() {
 	// Inisialisasi routes
 	routes.InitRoutes(e)
 
-	// Jalankan server
-	e.Logger.Fatal(e.Start(":8080"))
+	// Jalankan server dengan port dari environment (Render)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080" // default jika tidak ada environment variable
+	}
+
+	e.Logger.Fatal(e.Start(":" + port))
 }
