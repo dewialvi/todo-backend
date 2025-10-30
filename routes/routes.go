@@ -6,11 +6,11 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// InitRoutes berfungsi untuk mengatur semua endpoint
-func InitRoutes(e *echo.Echo) {
-	// Endpoint utama CRUD To-Do
-	e.GET("/todos", handlers.GetTodos)           // Menampilkan semua to-do
-	e.POST("/todos", handlers.CreateTodo)        // Menambahkan to-do baru
-	e.PUT("/todos/:id", handlers.UpdateTodoStatus) // Mengubah status to-do
-	e.DELETE("/todos/:id", handlers.DeleteTodo)  // Menghapus to-do
+// InitRoutes mengatur semua endpoint untuk To-Do
+// Sekarang menerima *echo.Group agar bisa digunakan untuk JWT group
+func InitRoutes(g *echo.Group) {
+	g.GET("", handlers.GetTodos)              // GET /todos
+	g.POST("", handlers.CreateTodo)           // POST /todos
+	g.PUT("/:id", handlers.UpdateTodoStatus)  // PUT /todos/:id
+	g.DELETE("/:id", handlers.DeleteTodo)     // DELETE /todos/:id
 }
