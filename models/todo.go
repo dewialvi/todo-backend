@@ -19,7 +19,7 @@ type Todo struct {
 // InitDB untuk koneksi ke database PostgreSQL
 func InitDB() {
 	// Ganti sesuai konfigurasi PostgreSQL kamu
-	host := "localhost"
+	host := "103.250.10.235"
 	port := 5432
 	user := "postgres"
 	password := "200603"        // ubah sesuai password PostgreSQL kamu
