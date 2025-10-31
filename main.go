@@ -9,34 +9,36 @@ import (
 	"todo-backend/routes"
 
 	"github.com/golang-jwt/jwt/v5"
-	echojwt "github.com/labstack/echo-jwt/v4" // ✅ untuk JWT middleware
+	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
 
-// ✅ Custom Claims (sesuai contoh sepupumu)
+// Struktur claims JWT
 type jwtCustomClaims struct {
 	Name  string `json:"name"`
 	Admin bool   `json:"admin"`
 	jwt.RegisteredClaims
 }
 
-// ✅ Handler login — menghasilkan token JWT
+// Handler login untuk menghasilkan token JWT
 func login(c echo.Context) error {
 	username := c.FormValue("username")
 	password := c.FormValue("password")
 
-	// Autentikasi sederhana (bisa kamu ubah nanti dari database)
+	// Autentikasi sederhana (sementara hardcoded)
 	if username != "dewi" || password != "1234" {
-		return echo.ErrUnauthorized
+		return c.JSON(http.StatusUnauthorized, echo.Map{
+			"message": "invalid username or password",
+		})
 	}
 
-	// Buat claims JWT
+	// Membuat claims token
 	claims := &jwtCustomClaims{
-		Name:  "Dewi",
+		Name:  username,
 		Admin: true,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 72)), // token berlaku 3 hari
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(72 * time.Hour)), // token berlaku 3 hari
 		},
 	}
 
@@ -44,10 +46,12 @@ func login(c echo.Context) error {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	t, err := token.SignedString([]byte("secret"))
 	if err != nil {
-		return err
+		return c.JSON(http.StatusInternalServerError, echo.Map{
+			"message": "failed to generate token",
+		})
 	}
 
-	// Kembalikan token ke client
+	// Return token ke client
 	return c.JSON(http.StatusOK, echo.Map{
 		"token": t,
 	})
@@ -64,13 +68,13 @@ func main() {
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
 
-	// ✅ Endpoint login (tidak perlu token)
+	// Endpoint login — tanpa autentikasi
 	e.POST("/login", login)
 
-	// ✅ Grup endpoint /todos yang dilindungi JWT
+	// Grup endpoint /todos yang dilindungi JWT
 	api := e.Group("/todos")
 
-	// Konfigurasi JWT
+	// Konfigurasi JWT middleware
 	config := echojwt.Config{
 		NewClaimsFunc: func(c echo.Context) jwt.Claims {
 			return new(jwtCustomClaims)
@@ -81,7 +85,7 @@ func main() {
 	// Pasang middleware JWT
 	api.Use(echojwt.WithConfig(config))
 
-	// Rute CRUD To-Do yang dilindungi JWT
+	// Inisialisasi rute CRUD todo
 	routes.InitRoutes(api)
 
 	// Jalankan server
