@@ -3,6 +3,7 @@ package models
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -11,15 +12,19 @@ import (
 var DB *gorm.DB
 
 type Todo struct {
-	ID        uint   `json:"id" gorm:"primaryKey"`
-	Title     string `json:"title"`
-	Completed bool   `json:"completed"`
+	ID        uint      `json:"id" gorm:"primaryKey"`
+	Title     string    `json:"title"`
+	Completed bool      `json:"completed"`
+	UserID    uint      `json:"user_id"`          // ID user pemilik
+	Deadline  time.Time `json:"deadline"`         // Waktu deadline
+	FilePath  string	`json:"file_path"`  // path file lampiran
 }
+
 
 // InitDB untuk koneksi ke database PostgreSQL
 func InitDB() {
 	// Ganti sesuai konfigurasi PostgreSQL kamu
-	host := "210.79.190.176"
+	host := "localhost"
 	port := 5432
 	user := "postgres"
 	password := "200603"        // ubah sesuai password PostgreSQL kamu
@@ -34,10 +39,12 @@ func InitDB() {
 		log.Fatalf("❌ Gagal konek ke database PostgreSQL: %v", err)
 	}
 
-	// Auto migrate tabel Todo
-	if err := DB.AutoMigrate(&Todo{}); err != nil {
-		log.Fatalf("❌ Gagal migrasi database: %v", err)
-	}
+	// Auto migrate tabel User dan Todo
+err = DB.AutoMigrate(&User{}, &Todo{}, &Activity{})
 
-	fmt.Println("✅ Koneksi ke PostgreSQL berhasil & migrasi selesai.")
+if err != nil {
+    fmt.Println("⚠️  Migrasi menghasilkan peringatan, tapi tetap dilanjutkan:", err)
+} else {
+    fmt.Println("✅ Migrasi database sukses.")
+}
 }

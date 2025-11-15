@@ -3,44 +3,74 @@ package handlers
 import (
 	"net/http"
 	"time"
+	"todo-backend/models"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
 )
 
-var jwtKey = []byte("rahasia_superkuat") // ubah sesuai keinginanmu
+// Register user baru
+func Register(c echo.Context) error {
+	var req struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "invalid request"})
+	}
 
-type Credentials struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+	user := models.User{Username: req.Username}
+	if err := user.HashPassword(req.Password); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "failed to hash password"})
+	}
+
+	if err := models.DB.Create(&user).Error; err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "username already exists"})
+	}
+
+	// Log aktivitas
+	models.CreateActivityLog(user.ID, "register_user")
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "user registered"})
 }
 
-type JWTResponse struct {
-	Token string `json:"token"`
-}
-
-// Login handler
+// Login user
 func Login(c echo.Context) error {
-	var creds Credentials
-	if err := c.Bind(&creds); err != nil {
-		return c.JSON(http.StatusBadRequest, echo.Map{"error": "invalid request"})
+	var req struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"message": "invalid request"})
 	}
 
-	// Ganti ini sesuai sistem user kamu (sementara hardcode)
-	if creds.Username != "dewi" || creds.Password != "12345" {
-		return c.JSON(http.StatusUnauthorized, echo.Map{"error": "invalid credentials"})
+	var user models.User
+	if err := models.DB.Where("username = ?", req.Username).First(&user).Error; err != nil {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"message": "invalid username or password"})
 	}
 
-	// Buat token JWT
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"username": creds.Username,
-		"exp":      time.Now().Add(time.Hour * 1).Unix(), // token berlaku 1 jam
-	})
+	if !user.CheckPassword(req.Password) {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"message": "invalid username or password"})
+	}
 
-	tokenString, err := token.SignedString(jwtKey)
+	claims := &JwtCustomClaims{
+	ID:    user.ID,
+	Name:  user.Username,
+	Admin: user.Username == "dewi", // set true kalau admin
+	RegisteredClaims: jwt.RegisteredClaims{
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(72 * time.Hour)),
+	},
+}
+
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	t, err := token.SignedString([]byte("rahasia_superkuat"))
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, echo.Map{"error": "could not generate token"})
+		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "failed to generate token"})
 	}
 
-	return c.JSON(http.StatusOK, JWTResponse{Token: tokenString})
+	// Log aktivitas login
+	models.CreateActivityLog(user.ID, "login_user")
+
+	return c.JSON(http.StatusOK, map[string]string{"token": t})
 }
